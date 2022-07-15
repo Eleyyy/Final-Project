@@ -25,7 +25,7 @@ class LogoScreen(Screen):
 
 	def on_enter(self, *args):
 		Clock.schedule_once(self.next_page, 1)
-
+	
 	def next_page(self, *args):
 		self.manager.current = "Loading_Screen"
 
@@ -73,10 +73,103 @@ class LoginScreen(Screen):
 		self.add_widget(self.username)
 		self.add_widget(self.password)
 
+	def on_enter(self, *args):
+		Clock.schedule_once(self.create, 2)
+
+	def create(self, *args):
+		self.manager.current = "Register_Screen"
+	
+
 class RegisterScreen(Screen):
 
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
+
+		self.firstname = MDTextField(
+			hint_text = "First Name",
+			font_name = "OpenSansR",
+			font_size = "11dp",
+			size_hint = (.75, .1),
+			height = "2dp",
+			width = 50,
+			pos_hint = {"center_x": .5, "center_y": .68},
+			helper_text = "Enter your First Name",
+			required = True,
+			mode = "rectangle",
+			)
+
+		self.lastname = MDTextField(
+			hint_text = "Last Name",
+			font_name = "OpenSansR",
+			font_size = "11dp",
+			size_hint = (.75, .1),
+			height = "2dp",
+			width = 50,
+			pos_hint = {"center_x": .5, "center_y": .60},
+			helper_text = "Enter your Last Name",
+			required = True,
+			mode = "rectangle",
+			)
+
+		self.username = MDTextField(
+			hint_text = "Username",
+			font_name = "OpenSansR",
+			font_size = "11dp",
+			size_hint = (.75, .1),
+			height = "2dp",
+			width = 50,
+			pos_hint = {"center_x": .5, "center_y": .52},
+			helper_text = "Enter your Username",
+			required = True,
+			mode = "rectangle",
+			)
+
+		self.email = MDTextField(
+			hint_text = "Email",
+			font_name = "OpenSansR",
+			font_size = "11dp",
+			size_hint = (.75, .1),
+			height = "2dp",
+			width = 50,
+			pos_hint = {"center_x": .5, "center_y": .44},
+			helper_text = "Enter your Email",
+			required = True,
+			mode = "rectangle",
+			)
+
+		self.password = MDTextField(
+			hint_text = "Password",
+			font_name = "OpenSansR",
+			font_size = "11dp",
+			size_hint = (.75, .1),
+			height = "2dp",
+			width = 50,
+			pos_hint = {"center_x": .5, "center_y": .36},
+			helper_text = "Enter your Password",
+			required = True,
+			mode = "rectangle",
+			)
+		
+		self.confirmpassword = MDTextField(
+			hint_text = "Confirm Password",
+			font_name = "OpenSansR",
+			font_size = "11dp",
+			size_hint = (.75, .1),
+			height = "2dp",
+			width = 50,
+			pos_hint = {"center_x": .5, "center_y": .28},
+			helper_text = "Enter your Password",
+			required = True,
+			mode = "rectangle",
+			)
+
+
+		self.add_widget(self.firstname)
+		self.add_widget(self.lastname)
+		self.add_widget(self.username)
+		self.add_widget(self.email)
+		self.add_widget(self.password)
+		self.add_widget(self.confirmpassword)
 
 class CurrencyScreen(Screen):
 	def __init__(self, **kwargs):
