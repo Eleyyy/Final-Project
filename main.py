@@ -1,5 +1,5 @@
-#Required Libraries
-#Required Libraries
+#######Required Libraries########
+#layout libraries
 import kivy
 from kivymd.app import MDApp
 from kivy.core.window import Window
@@ -10,13 +10,29 @@ from kivy.core.text import LabelBase
 from kivy.uix.label import Label
 from kivy.uix.floatlayout import FloatLayout
 from kivymd.uix.textfield import MDTextField
+from kivymd.icon_definitions import md_icons
+from kivy.properties import ListProperty
 from kivy.clock import Clock
+import re
+from kivymd.uix.menu import MDDropdownMenu
+
+
+#layout Libraries
+
+##database libraries
 import pymongo
 from pymongo import MongoClient
+##database libraries
+
+##validation api
+from kivyauth.google_auth import initialize_google, login_google, logout_google
+#235651464495-v9qn51gb53394mig64avc51ijaf1q439.apps.googleusercontent.com
+#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
+##google and facebook acc api
 
 Builder.load_file('layout.kv')
+regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
 
-#Screens
 #Screens
 class LogoScreen(Screen):
 	#Start Screen
@@ -24,8 +40,8 @@ class LogoScreen(Screen):
 		super().__init__(**kwargs)
 
 	def on_enter(self, *args):
-		Clock.schedule_once(self.next_page, 1)
-	
+		Clock.schedule_once(self.next_page, 4)
+
 	def next_page(self, *args):
 		self.manager.current = "Loading_Screen"
 
@@ -35,7 +51,7 @@ class LoadingScreen(Screen):
 		super().__init__(**kwargs)
 
 	def on_enter(self, *args):
-		Clock.schedule_once(self.login, 1)
+		Clock.schedule_once(self.login, 4)
 
 	def login(self, *args):
 		self.manager.current = "Login_Screen"
@@ -45,135 +61,158 @@ class LoginScreen(Screen):
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
 
-		self.username = MDTextField(
-			hint_text = "Username/Email",
-			font_name = "OpenSansR",
-			font_size = "11dp",
-			size_hint_x = .75,
-			width = 200,
-			pos_hint = {"center_x": .5, "center_y": .55},
-			helper_text =  "Enter your Username",
-			required = True,
-			mode = "rectangle",
-			)
+	#To make password visible
+	def show_password(self, checkbox, value):
+		if value:
+			self.ids.password.password = False
+		else:
+			self.ids.password.password = True
 
-		self.password = MDTextField(
-			hint_text = "Password",
-			font_name = "OpenSansR",
-			font_size = "11dp",
-			size_hint = (.75, .1),
-			height = "2dp",
-			width = 50,
-			pos_hint = {"center_x": .5, "center_y": .40},
-			helper_text =  "Enter your Username",
-			required = True,
-			mode = "rectangle",
-			)
+	def loginverification(self, Luname, Lpass):
 
-		self.add_widget(self.username)
-		self.add_widget(self.password)
+		self.ids.Lusername.helper_text = ""
+		self.ids.Lpassword.helper_text = ""
 
-	def on_enter(self, *args):
-		Clock.schedule_once(self.create, 2)
+		currentUsername = userprofile.find_one({"_id": Luname})
 
-	def create(self, *args):
-		self.manager.current = "Register_Screen"
-	
+		l = 0
+
+		#username and email doesnt exist
+		if len(Luname) == 0:
+			self.ids.Lusername.helper_text = "Required"
+			l += 1
+		else:
+			if (re.fullmatch(regex, Luname)):
+				if userprofile["Email"] != Luname:
+					self.ids.Lusername.helper_text = "Email doesn't exist"
+					l += 1
+			elif currentUsername is None:
+				self.ids.Lusername.helper_text = "Username doesn't exist"
+				l += 1	
+
+		if len(Lpass) == 0:
+			self.ids.Lpassword.helper_text = "Required"	
+			l += 1
+		else:
+			if currentUsername["Password"] != Lpass:
+				self.ids.Lpassword.helper_text = "Wrong Password"
+				l += 1
+
+		if l > 0:
+			self.manager.current = "Login_Screen"
+			
+		else:
+			self.ids.Lusername.text = ""
+			self.ids.Lpassword.text = ""
+
+			global User_name, User_password
+			User_name = Luname
+			User_password = Lpass
+
+			self.manager.current = "WelcomeBack_Screen"
+
 
 class RegisterScreen(Screen):
 
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
 
-		self.firstname = MDTextField(
-			hint_text = "First Name",
-			font_name = "OpenSansR",
-			font_size = "11dp",
-			size_hint = (.75, .1),
-			height = "2dp",
-			width = 50,
-			pos_hint = {"center_x": .5, "center_y": .68},
-			helper_text = "Enter your First Name",
-			required = True,
-			mode = "rectangle",
-			)
+	#To make password visible
+	def show_Rpassword(self, checkbox, value):
+		if value:
+			self.ids.Rpassword.password = False
+		else:
+			self.ids.Rpassword.password = True
 
-		self.lastname = MDTextField(
-			hint_text = "Last Name",
-			font_name = "OpenSansR",
-			font_size = "11dp",
-			size_hint = (.75, .1),
-			height = "2dp",
-			width = 50,
-			pos_hint = {"center_x": .5, "center_y": .60},
-			helper_text = "Enter your Last Name",
-			required = True,
-			mode = "rectangle",
-			)
+	#To make password visible
+	def show_RCpassword(self, checkbox, value):
+		if value:
+			self.ids.RCpassword.password = False
+		else:
+			self.ids.RCpassword.password = True
 
-		self.username = MDTextField(
-			hint_text = "Username",
-			font_name = "OpenSansR",
-			font_size = "11dp",
-			size_hint = (.75, .1),
-			height = "2dp",
-			width = 50,
-			pos_hint = {"center_x": .5, "center_y": .52},
-			helper_text = "Enter your Username",
-			required = True,
-			mode = "rectangle",
-			)
+	def regverification(self, Fname, Lname, Uname, Email, Rpass, RCpass):
 
-		self.email = MDTextField(
-			hint_text = "Email",
-			font_name = "OpenSansR",
-			font_size = "11dp",
-			size_hint = (.75, .1),
-			height = "2dp",
-			width = 50,
-			pos_hint = {"center_x": .5, "center_y": .44},
-			helper_text = "Enter your Email",
-			required = True,
-			mode = "rectangle",
-			)
+		self.ids.Fname.helper_text = ""
+		self.ids.Lname.helper_text = ""
+		self.ids.Uname.helper_text = ""
+		self.ids.Rpassword.helper_text = ""
+		self.ids.RCpassword.helper_text = ""
+		self.ids.Reg_Email.helper_text = ""
 
-		self.password = MDTextField(
-			hint_text = "Password",
-			font_name = "OpenSansR",
-			font_size = "11dp",
-			size_hint = (.75, .1),
-			height = "2dp",
-			width = 50,
-			pos_hint = {"center_x": .5, "center_y": .36},
-			helper_text = "Enter your Password",
-			required = True,
-			mode = "rectangle",
-			)
-		
-		self.confirmpassword = MDTextField(
-			hint_text = "Confirm Password",
-			font_name = "OpenSansR",
-			font_size = "11dp",
-			size_hint = (.75, .1),
-			height = "2dp",
-			width = 50,
-			pos_hint = {"center_x": .5, "center_y": .28},
-			helper_text = "Enter your Password",
-			required = True,
-			mode = "rectangle",
-			)
+		x = 0
+
+		#No Input Error
+		if len(Fname) == 0:
+			self.ids.Fname.helper_text = "Required"
+			x += 1
+		if len(Lname) == 0:
+			self.ids.Lname.helper_text = "Required"
+			x += 1
+		if len(Uname) == 0: 
+			self.ids.Uname.helper_text = "Required"
+			x += 1
+		if len(Rpass) == 0:
+			self.ids.Rpassword.helper_text = "Required"
+			x += 1
+		if len(RCpass) == 0:
+			self.ids.RCpassword.helper_text = "Required"
+			x += 1
+
+		#Confirm Password Checker Error
+		if Rpass != RCpass:
+			self.ids.Rpassword.helper_text = "Password do not match"
+			self.ids.RCpassword.helper_text = "Password do not match"
+			x += 1
+
+		#Email Checker
+		if (re.fullmatch(regex, Email)):
+			x += 0
+		else:
+			self.ids.Reg_Email.helper_text = "Invalid Email"
+			x += 1
 
 
-		self.add_widget(self.firstname)
-		self.add_widget(self.lastname)
-		self.add_widget(self.username)
-		self.add_widget(self.email)
-		self.add_widget(self.password)
-		self.add_widget(self.confirmpassword)
+		if x > 0:
+			self.manager.current = "Register_Screen"
+			
+		else:
+			user = {"_id": Uname,"Email": Email, "First_Name": Fname, "Last_Name": Lname, "Password": Rpass}
+			userprofile.insert_one(user)
+
+			self.ids.Fname.text = ""
+			self.ids.Lname.text = ""
+			self.ids.Uname.text = ""
+			self.ids.Reg_Email.text = ""
+			self.ids.Rpassword.text = ""
+			self.ids.RCpassword.text = ""
+
+			self.manager.current = "Currency_Screen"
+
 
 class CurrencyScreen(Screen):
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
+
+	def drpdown(Self):
+		Self.menu_list = [
+			{
+				"viewclass": "OneLineListItem",
+				"text": "PHP",
+				"on_release": lambda x = "PHP" : Self.test1()
+			},
+			{
+				"viewclass": "OneLineListItem",
+				"text": "USD",
+				"on_release": lambda x = "USD" : Self.test2()
+			}
+		]
+		Self.menu = MDDropdownMenu(
+			caller = Self.ids.menu,
+			items = Self.menu_list,
+			width_mult = 4
+		)
+		Self.menu.open()
 
 class InitialAmount(Screen):
 	def __init__(self, **kwargs):
@@ -183,7 +222,7 @@ class WelcomeScreen(Screen):
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
 
-class WekcomeBackScreen(Screen):
+class WelcomeBackScreen(Screen):
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
 
@@ -198,12 +237,10 @@ class YourExpense(MDApp):
 		sc_manager.add_widget(LoginScreen(name="Login_Screen"))
 		sc_manager.add_widget(RegisterScreen(name="Register_Screen"))
 		sc_manager.add_widget(CurrencyScreen(name="Currency_Screen"))
-		sc_manager.add_widget(CurrencyScreen(name="InitialAmount_Screen"))
+		sc_manager.add_widget(InitialAmount(name="InitialAmount_Screen"))
 		sc_manager.add_widget(CurrencyScreen(name="Welcome_Screen"))
 		sc_manager.add_widget(CurrencyScreen(name="WelcomeBack_Screen"))
 		return sc_manager
-
-
 
 
 #MAIN FUNCTION
@@ -215,7 +252,7 @@ if __name__ == '__main__':
 	#DataBase
 	clusterdata = MongoClient("mongodb+srv://Java-rice:Fs6EMINE5Dm9YaFj@finalproject.p08n5.mongodb.net/?retryWrites=true&w=majority")
 	db = clusterdata["Application"]
-	collection = db["Profiles"]
+	userprofile = db["Profiles"]
 
 	#Fonts Styles
 	LabelBase.register(name = "LatoB", fn_regular= "assets/txt/Lato-Bold.ttf")
