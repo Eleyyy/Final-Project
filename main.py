@@ -12,11 +12,12 @@ from kivy.uix.floatlayout import FloatLayout
 from kivymd.uix.textfield import MDTextField
 from kivymd.icon_definitions import md_icons
 from kivy.properties import ListProperty
-from kivy.clock import Clock
-import re
 from kivymd.uix.menu import MDDropdownMenu
-
-
+from kivy.metrics import dp
+from kivy.clock import Clock
+from kivy.uix.scrollview import ScrollView 
+import uuid 
+import re
 #layout Libraries
 
 ##database libraries
@@ -26,9 +27,7 @@ from pymongo import MongoClient
 
 ##validation api
 from kivyauth.google_auth import initialize_google, login_google, logout_google
-#235651464495-v9qn51gb53394mig64avc51ijaf1q439.apps.googleusercontent.com
-#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
-##google and facebook acc api
+
 
 Builder.load_file('layout.kv')
 regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
@@ -56,26 +55,55 @@ class LoadingScreen(Screen):
 	def login(self, *args):
 		self.manager.current = "Login_Screen"
 
+
 class LoginScreen(Screen):
 	
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
 
+		global CurrentUser
+		CurrentUser = []
+
+		self.ids.Lusername.text = ""
+		self.ids.Lpassword.text = ""
+		client_id = open("client_id.txt")
+		client_secret = open("client_secret.txt")
+		initialize_google(self.after_login, self.error_listener, client_id.read(), client_secret.read())
+
+	def after_login(self, name, email, photo_uri):
+		print(name)
+		print(email)
+		self.manager.transition.direction = "left"
+		logout_google()
+
+	def error_listener(self):
+		print("Login Failed!")
+
+	def google_log(self):
+		login_google()
+
+	def logout(self):
+		logout_google()
+
+	def after_logout(self):
+		self.root.current = "WelcomeBack_Screen"
+
+
 	#To make password visible
 	def show_password(self, checkbox, value):
 		if value:
-			self.ids.password.password = False
+			self.ids.Lpassword.password = False
 		else:
-			self.ids.password.password = True
+			self.ids.Lpassword.password = True
 
 	def loginverification(self, Luname, Lpass):
 
 		self.ids.Lusername.helper_text = ""
 		self.ids.Lpassword.helper_text = ""
 
-		currentUsername = userprofile.find_one({"_id": Luname})
-
 		l = 0
+		n = 0
+		i = 0
 
 		#username and email doesnt exist
 		if len(Luname) == 0:
@@ -83,20 +111,34 @@ class LoginScreen(Screen):
 			l += 1
 		else:
 			if (re.fullmatch(regex, Luname)):
-				if userprofile["Email"] != Luname:
+				data = userprofile.find({"Email": Luname})
+				if userprofile.find_one({"Email": Luname}) is None:
 					self.ids.Lusername.helper_text = "Email doesn't exist"
 					l += 1
-			elif currentUsername is None:
-				self.ids.Lusername.helper_text = "Username doesn't exist"
-				l += 1	
+				else:
+					l += 0
+					n += 1
+
+			else:
+				if userprofile.find_one({"Uname": Luname}) is None:
+					self.ids.Lusername.helper_text = "Username doesn't exist"
+					l += 1	
+				else:
+					data = userprofile.find({"Uname": Luname})
+					n += 1
+					l += 0
+
 
 		if len(Lpass) == 0:
 			self.ids.Lpassword.helper_text = "Required"	
 			l += 1
-		else:
-			if currentUsername["Password"] != Lpass:
-				self.ids.Lpassword.helper_text = "Wrong Password"
-				l += 1
+		elif n > 0:
+			for x in data:
+				if x["Password"] == Lpass:
+					l += 0
+				else:
+					self.ids.Lpassword.helper_text = "Incorrect Password"
+					l += 1
 
 		if l > 0:
 			self.manager.current = "Login_Screen"
@@ -105,17 +147,28 @@ class LoginScreen(Screen):
 			self.ids.Lusername.text = ""
 			self.ids.Lpassword.text = ""
 
-			global User_name, User_password
 			User_name = Luname
-			User_password = Lpass
 
-			self.manager.current = "WelcomeBack_Screen"
+			global CurrentUser
+
+			for x in userprofile.find({"Uname": Luname}):
+				CurrentUser = x
+
+			self.manager.get_screen("Welcome_Screen").ids.namecurrent.text = CurrentUser["First_Name"]
+			self.manager.current = "Welcome_Screen"
 
 
 class RegisterScreen(Screen):
 
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
+
+		self.ids.Fname.text = ""
+		self.ids.Lname.text = ""
+		self.ids.Uname.text = ""
+		self.ids.Reg_Email.text = ""
+		self.ids.Rpassword.text = ""
+		self.ids.RCpassword.text = ""
 
 	#To make password visible
 	def show_Rpassword(self, checkbox, value):
@@ -149,9 +202,16 @@ class RegisterScreen(Screen):
 		if len(Lname) == 0:
 			self.ids.Lname.helper_text = "Required"
 			x += 1
+
 		if len(Uname) == 0: 
 			self.ids.Uname.helper_text = "Required"
 			x += 1
+		elif userprofile.find_one({"Uname": Uname}):
+			self.ids.Uname.helper_text = "Account already Exists"
+			x += 1
+		else:
+			x += 0
+
 		if len(Rpass) == 0:
 			self.ids.Rpassword.helper_text = "Required"
 			x += 1
@@ -167,18 +227,29 @@ class RegisterScreen(Screen):
 
 		#Email Checker
 		if (re.fullmatch(regex, Email)):
-			x += 0
+			if userprofile.find_one({"Email": Email}):
+				self.ids.Reg_Email.helper_text = "Account already Exists"
+				x += 1
+			else:
+				x += 0
 		else:
 			self.ids.Reg_Email.helper_text = "Invalid Email"
 			x += 1
-
 
 		if x > 0:
 			self.manager.current = "Register_Screen"
 			
 		else:
-			user = {"_id": Uname,"Email": Email, "First_Name": Fname, "Last_Name": Lname, "Password": Rpass}
-			userprofile.insert_one(user)
+			global user
+
+			user = { 
+			"_id": uuid.uuid4().hex,
+			"Uname": Uname, 
+			"Email": Email, 
+			"First_Name": Fname, 
+			"Last_Name": Lname, 
+			"Password": Rpass
+			}
 
 			self.ids.Fname.text = ""
 			self.ids.Lname.text = ""
@@ -193,38 +264,94 @@ class RegisterScreen(Screen):
 class CurrencyScreen(Screen):
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
-
-	def drpdown(Self):
-		Self.menu_list = [
-			{
+		self.menu_list = [{
 				"viewclass": "OneLineListItem",
 				"text": "PHP",
-				"on_release": lambda x = "PHP" : Self.test1()
-			},
-			{
+				"height": dp(56),
+				"on_release": 
+					lambda x = "PHP" : self.PHP()
+			},{
 				"viewclass": "OneLineListItem",
 				"text": "USD",
-				"on_release": lambda x = "USD" : Self.test2()
+				"height": dp(56),
+				"on_release": 
+					lambda x = "USD" : self.USD()
+			},{
+				"viewclass": "OneLineListItem",
+				"text": "EURO",
+				"height": dp(56),
+				"on_release": 
+					lambda x = "USD" : self.EURO()
 			}
 		]
-		Self.menu = MDDropdownMenu(
-			caller = Self.ids.menu,
-			items = Self.menu_list,
-			width_mult = 4
+		self.menu = MDDropdownMenu(
+			caller = self.ids.field,
+			items = self.menu_list,
+			position =  "center",
+			width_mult = 4,
 		)
-		Self.menu.open()
+
+
+	def PHP(self):
+		self.menu.dismiss()
+		self.ids.field.text = "PHP"
+		
+
+	def USD(self):
+		self.menu.dismiss()
+		self.ids.field.text = "USD"
+		
+
+	def EURO(self):
+		self.menu.dismiss()
+		self.ids.field.text = "EURO"
+		
+
+	def confirmcurrency(self, currency):
+		user["Currency"] = currency
+
+		self.manager.transition.direction = "left"
+		self.manager.current = "InitialAmount_Screen"
 
 class InitialAmount(Screen):
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
 
+	def amountchecking(self, amount):
+
+		if amount.isnumeric(): 
+			user["Money"] = amount
+			print(user)
+			userprofile.insert_one(user)
+			self.manager.current = "ThankYou_Screen"
+		else:
+			if len(amount) == 0:
+				self.ids.Iamount.helper_text = "Required"
+				self.manager.current = "InitialAmount_Screen"
+			else:
+				self.ids.Iamount.helper_text = "Must be a number"
+				self.manager.current = "InitialAmount_Screen"
+
+
 class WelcomeScreen(Screen):
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
 
-class WelcomeBackScreen(Screen):
+class ThankYouScreen(Screen):
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
+
+
+class HomeScreen(Screen):
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+
+
+
+class Home(Screen):
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+
 
 
 #MAIN APPLICATION
@@ -238,10 +365,11 @@ class YourExpense(MDApp):
 		sc_manager.add_widget(RegisterScreen(name="Register_Screen"))
 		sc_manager.add_widget(CurrencyScreen(name="Currency_Screen"))
 		sc_manager.add_widget(InitialAmount(name="InitialAmount_Screen"))
-		sc_manager.add_widget(CurrencyScreen(name="Welcome_Screen"))
-		sc_manager.add_widget(CurrencyScreen(name="WelcomeBack_Screen"))
+		sc_manager.add_widget(WelcomeScreen(name="Welcome_Screen"))
+		sc_manager.add_widget(ThankYouScreen(name="ThankYou_Screen"))
+		sc_manager.add_widget(HomeScreen(name="Home_Screen"))
+		sc_manager.add_widget(Home(name="Home"))
 		return sc_manager
-
 
 #MAIN FUNCTION
 if __name__ == '__main__':
@@ -253,6 +381,11 @@ if __name__ == '__main__':
 	clusterdata = MongoClient("mongodb+srv://Java-rice:Fs6EMINE5Dm9YaFj@finalproject.p08n5.mongodb.net/?retryWrites=true&w=majority")
 	db = clusterdata["Application"]
 	userprofile = db["Profiles"]
+	userbalance = db["Balance"]
+
+	global User_name
+	global userinfo
+	global user
 
 	#Fonts Styles
 	LabelBase.register(name = "LatoB", fn_regular= "assets/txt/Lato-Bold.ttf")
